@@ -114,34 +114,27 @@ class DefiLlamaCollector:
 
         records = []
         for entry in chart_data:
-            timestamp = datetime.fromtimestamp(entry["date"])
+            timestamp = datetime.fromtimestamp(int(entry["date"]))
 
-            # Total circulating across all chains
-            total_circulating = sum(
-                chain_data.get("circulating", {}).get("peggedUSD", 0)
-                for chain_data in entry.get("totalCirculating", {}).values()
-                if isinstance(chain_data, dict)
-            )
-
-            # Bridged vs native (if available)
-            total_bridged = sum(
-                chain_data.get("bridgedTo", {}).get("peggedUSD", 0)
-                for chain_data in entry.get("totalCirculating", {}).values()
-                if isinstance(chain_data, dict)
-            )
+            # Total circulating (simpler structure)
+            total_circulating = entry.get("totalCirculating", {}).get("peggedUSD", 0)
+            total_circulating_usd = entry.get("totalCirculatingUSD", {}).get("peggedUSD", 0)
 
             records.append({
                 "timestamp": timestamp,
-                "total_circulating_usd": total_circulating,
-                "total_bridged_usd": total_bridged,
+                "total_circulating": total_circulating,
+                "total_circulating_usd": total_circulating_usd,
             })
 
         df = pd.DataFrame(records)
         df["coin"] = coin_key
 
+        # Calculate implied price (total_circulating_usd / total_circulating)
+        df["implied_price"] = df["total_circulating_usd"] / df["total_circulating"].replace(0, 1)
+
         # Calculate metrics
-        df["circulating_change_pct"] = df["total_circulating_usd"].pct_change()
-        df["circulating_change_7d"] = df["total_circulating_usd"].pct_change(periods=7)
+        df["circulating_change_pct"] = df["total_circulating"].pct_change()
+        df["circulating_change_7d"] = df["total_circulating"].pct_change(periods=7)
 
         return df
 

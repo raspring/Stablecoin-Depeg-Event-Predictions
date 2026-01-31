@@ -2,6 +2,7 @@
 Collect historical price data for stablecoins from CoinGecko API.
 """
 
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -19,46 +20,43 @@ class CoinGeckoCollector:
 
     BASE_URL = "https://api.coingecko.com/api/v3"
 
-    def __init__(self, rate_limit_delay: float = 1.5):
+    def __init__(self, api_key: str = None, rate_limit_delay: float = 1.5):
         """
         Initialize collector.
 
         Args:
+            api_key: CoinGecko API key (optional, or set COINGECKO_API_KEY env var)
             rate_limit_delay: Seconds to wait between API calls (free tier limit)
         """
+        self.api_key = api_key or os.getenv("COINGECKO_API_KEY")
         self.rate_limit_delay = rate_limit_delay
         self.session = requests.Session()
 
-    def get_market_chart_range(
+        # Set headers for demo API access
+        if self.api_key:
+            self.session.headers["x-cg-demo-api-key"] = self.api_key
+
+    def get_market_chart(
         self,
         coin_id: str,
         vs_currency: str = "usd",
-        from_timestamp: int = None,
-        to_timestamp: int = None,
+        days: str = "max",
     ) -> dict:
         """
-        Get historical market data within a time range.
+        Get historical market data.
 
         Args:
             coin_id: CoinGecko coin ID
             vs_currency: Target currency
-            from_timestamp: Start time (Unix timestamp)
-            to_timestamp: End time (Unix timestamp)
+            days: Number of days ("1", "7", "30", "365", "max")
 
         Returns:
             Dict with prices, market_caps, total_volumes
         """
-        if from_timestamp is None:
-            # Default to 4 years ago
-            from_timestamp = int(datetime(2020, 1, 1).timestamp())
-        if to_timestamp is None:
-            to_timestamp = int(datetime.now().timestamp())
-
-        url = f"{self.BASE_URL}/coins/{coin_id}/market_chart/range"
+        url = f"{self.BASE_URL}/coins/{coin_id}/market_chart"
         params = {
             "vs_currency": vs_currency,
-            "from": from_timestamp,
-            "to": to_timestamp,
+            "days": days,
         }
 
         response = self.session.get(url, params=params)
@@ -70,16 +68,14 @@ class CoinGeckoCollector:
     def collect_stablecoin_data(
         self,
         coin_key: str,
-        from_date: datetime = None,
-        to_date: datetime = None,
+        days: str = "max",
     ) -> pd.DataFrame:
         """
         Collect and format stablecoin price data.
 
         Args:
             coin_key: Key from STABLECOINS config
-            from_date: Start date
-            to_date: End date
+            days: Number of days of history ("1", "7", "30", "365", "max")
 
         Returns:
             DataFrame with timestamp, price, market_cap, volume
@@ -88,14 +84,10 @@ class CoinGeckoCollector:
         if not coin_config:
             raise ValueError(f"Unknown stablecoin: {coin_key}")
 
-        from_ts = int(from_date.timestamp()) if from_date else None
-        to_ts = int(to_date.timestamp()) if to_date else None
-
         print(f"Collecting data for {coin_config['name']}...")
-        data = self.get_market_chart_range(
+        data = self.get_market_chart(
             coin_id=coin_config["coingecko_id"],
-            from_timestamp=from_ts,
-            to_timestamp=to_ts,
+            days=days,
         )
 
         # Convert to DataFrame
@@ -131,10 +123,10 @@ def main():
     """Collect USDT data."""
     collector = CoinGeckoCollector()
 
-    # Collect USDT data from 2020 to now
+    # Collect USDT data (max available history)
     df = collector.collect_stablecoin_data(
         coin_key="usdt",
-        from_date=datetime(2020, 1, 1),
+        days="max",
     )
 
     print(f"\nCollected {len(df)} data points")
