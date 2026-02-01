@@ -18,7 +18,8 @@ from config.settings import STABLECOINS, RAW_DATA_DIR
 class CoinGeckoCollector:
     """Collect price data from CoinGecko API."""
 
-    BASE_URL = "https://api.coingecko.com/api/v3"
+    BASE_URL_FREE = "https://api.coingecko.com/api/v3"
+    BASE_URL_PRO = "https://pro-api.coingecko.com/api/v3"
 
     def __init__(self, api_key: str = None, rate_limit_delay: float = 1.5):
         """
@@ -32,15 +33,19 @@ class CoinGeckoCollector:
         self.rate_limit_delay = rate_limit_delay
         self.session = requests.Session()
 
-        # Set headers for demo API access
+        # Set appropriate URL and header based on API key
         if self.api_key:
+            # Demo API uses free URL with demo header
+            self.base_url = self.BASE_URL_FREE
             self.session.headers["x-cg-demo-api-key"] = self.api_key
+        else:
+            self.base_url = self.BASE_URL_FREE
 
     def get_market_chart(
         self,
         coin_id: str,
         vs_currency: str = "usd",
-        days: str = "max",
+        days: int = 365,
     ) -> dict:
         """
         Get historical market data.
@@ -48,15 +53,15 @@ class CoinGeckoCollector:
         Args:
             coin_id: CoinGecko coin ID
             vs_currency: Target currency
-            days: Number of days ("1", "7", "30", "365", "max")
+            days: Number of days (use large number like 3650 for ~10 years)
 
         Returns:
             Dict with prices, market_caps, total_volumes
         """
-        url = f"{self.BASE_URL}/coins/{coin_id}/market_chart"
+        url = f"{self.base_url}/coins/{coin_id}/market_chart"
         params = {
             "vs_currency": vs_currency,
-            "days": days,
+            "days": str(days),
         }
 
         response = self.session.get(url, params=params)
@@ -68,14 +73,14 @@ class CoinGeckoCollector:
     def collect_stablecoin_data(
         self,
         coin_key: str,
-        days: str = "max",
+        days: int = 365,
     ) -> pd.DataFrame:
         """
         Collect and format stablecoin price data.
 
         Args:
             coin_key: Key from STABLECOINS config
-            days: Number of days of history ("1", "7", "30", "365", "max")
+            days: Number of days of history (default 3650 for ~10 years)
 
         Returns:
             DataFrame with timestamp, price, market_cap, volume
@@ -123,10 +128,10 @@ def main():
     """Collect USDT data."""
     collector = CoinGeckoCollector()
 
-    # Collect USDT data (max available history)
+    # Collect USDT data (~10 years of history)
     df = collector.collect_stablecoin_data(
         coin_key="usdt",
-        days="max",
+        days=3650,
     )
 
     print(f"\nCollected {len(df)} data points")

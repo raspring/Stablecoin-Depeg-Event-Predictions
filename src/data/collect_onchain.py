@@ -19,12 +19,12 @@ from config.settings import RAW_DATA_DIR
 
 class EtherscanCollector:
     """
-    Collect on-chain data from Etherscan API.
+    Collect on-chain data from Etherscan API V2.
 
     Requires free API key from https://etherscan.io/apis
     """
 
-    BASE_URL = "https://api.etherscan.io/api"
+    BASE_URL = "https://api.etherscan.io/v2/api"
 
     # USDT contract on Ethereum
     CONTRACTS = {
@@ -47,6 +47,7 @@ class EtherscanCollector:
 
     def _request(self, params: dict) -> dict:
         """Make API request with rate limiting."""
+        params["chainid"] = 1  # Ethereum mainnet
         if self.api_key:
             params["apikey"] = self.api_key
 
