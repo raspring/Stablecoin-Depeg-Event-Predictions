@@ -6,6 +6,7 @@ Combines:
 - DefiLlama supply metrics
 - CoinGecko direct USD prices
 - Fear & Greed index
+- FRED macro indicators (DXY, VIX, Treasury rates)
 """
 
 import pandas as pd
@@ -114,7 +115,25 @@ def load_fear_greed() -> pd.DataFrame:
     return df
 
 
-def merge_coin_data(coin: str) -> pd.DataFrame:
+def load_fred() -> pd.DataFrame:
+    """Load FRED macro indicators."""
+    filepath = RAW_DATA_DIR / "fred_macro.csv"
+
+    if not filepath.exists():
+        print(f"Warning: {filepath} not found")
+        return pd.DataFrame()
+
+    df = pd.read_csv(filepath)
+    df["date"] = pd.to_datetime(df["date"])
+
+    # Rename columns with fred_ prefix to avoid conflicts
+    rename_cols = {col: f"fred_{col.lower()}" for col in df.columns if col != "date"}
+    df = df.rename(columns=rename_cols)
+
+    return df
+
+
+def merge_coin_data(coin: str, fred_df: pd.DataFrame = None) -> pd.DataFrame:
     """Merge all sources for a single coin."""
     print(f"\n=== Merging {coin.upper()} data ===")
 
@@ -128,6 +147,8 @@ def merge_coin_data(coin: str) -> pd.DataFrame:
     print(f"DefiLlama: {len(defillama)} days")
     print(f"CoinGecko: {len(coingecko)} days")
     print(f"Fear & Greed: {len(fear_greed)} days")
+    if fred_df is not None:
+        print(f"FRED: {len(fred_df)} days")
 
     # Start with Binance + DefiLlama (inner join - need both)
     if binance.empty or defillama.empty:
@@ -147,6 +168,13 @@ def merge_coin_data(coin: str) -> pd.DataFrame:
         merged = merged.merge(fear_greed, on="date", how="left")
         print(f"After Fear & Greed: {len(merged)} days ({merged['fear_greed_value'].notna().sum()} with F&G data)")
 
+    # Add FRED macro data (left join - optional)
+    if fred_df is not None and not fred_df.empty:
+        merged = merged.merge(fred_df, on="date", how="left")
+        fred_col = [c for c in merged.columns if c.startswith("fred_")][0] if any(c.startswith("fred_") for c in merged.columns) else None
+        if fred_col:
+            print(f"After FRED: {len(merged)} days ({merged[fred_col].notna().sum()} with FRED data)")
+
     # Add coin identifier
     merged["coin"] = coin
 
@@ -160,10 +188,13 @@ def create_processed_files():
     """Create all processed data files."""
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Load FRED data once (shared across coins)
+    fred_df = load_fred()
+
     all_data = []
 
     for coin in ["usdt", "usdc"]:
-        df = merge_coin_data(coin)
+        df = merge_coin_data(coin, fred_df=fred_df)
 
         if not df.empty:
             # Save individual coin file
@@ -190,7 +221,7 @@ def create_processed_files():
         print(f"USDC records: {len(combined[combined['coin'] == 'usdc'])}")
 
         # New columns
-        new_cols = [c for c in combined.columns if c.startswith("cg_") or c.startswith("fear_")]
+        new_cols = [c for c in combined.columns if c.startswith("cg_") or c.startswith("fear_") or c.startswith("fred_")]
         if new_cols:
             print(f"New features added: {new_cols}")
 
