@@ -91,7 +91,7 @@ def collect_all(
         try:
             onchain_collector = EtherscanCollector()
             if onchain_collector.api_key:
-                onchain_df = onchain_collector.collect_transfer_metrics(coin_key)
+                onchain_df = onchain_collector.collect_transfer_metrics(coin_key, start_date=start_date)
                 if not onchain_df.empty:
                     onchain_collector.save_data(onchain_df, coin_key, "_transfers")
                     agg_df = onchain_collector.aggregate_transfer_metrics(onchain_df)
