@@ -1,6 +1,6 @@
 """Tests for EtherscanCollector block-range pagination logic."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch, call
 
 import pandas as pd
@@ -270,9 +270,9 @@ class TestCollectTransferMetricsDispatch:
     def test_end_date_defaults_to_now_when_omitted(self, collector):
         collector._collect_by_block_range = MagicMock(return_value=pd.DataFrame())
 
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         collector.collect_transfer_metrics("usdt", start_date=datetime(2023, 1, 1))
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
 
         _, kwargs = collector._collect_by_block_range.call_args
         # The method is called positionally: coin_key, start_date, end_date

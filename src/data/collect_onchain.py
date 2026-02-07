@@ -11,7 +11,7 @@ Supports two collection modes:
 
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -341,7 +341,7 @@ class EtherscanCollector:
         """
         if start_date is not None:
             if end_date is None:
-                end_date = datetime.utcnow()
+                end_date = datetime.now(timezone.utc)
             return self._collect_by_block_range(coin_key, start_date, end_date)
         else:
             return self._collect_by_pages(coin_key, num_pages=num_pages or 10)
