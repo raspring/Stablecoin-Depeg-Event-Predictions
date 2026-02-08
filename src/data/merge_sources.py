@@ -3,6 +3,7 @@ Merge all data sources into processed files.
 
 Combines:
 - Binance trading data (OHLCV, spread, buy pressure)
+- Kraken fiat pair data (direct USD price, VWAP, spread)
 - DefiLlama supply metrics
 - CoinGecko direct USD prices
 - Fear & Greed index
@@ -42,6 +43,38 @@ def load_binance_daily(coin: str) -> pd.DataFrame:
 
     daily["date"] = pd.to_datetime(daily["date"])
     daily["timestamp_btc"] = daily["date"]
+
+    return daily
+
+
+def load_kraken_daily(coin: str) -> pd.DataFrame:
+    """Load and aggregate Kraken hourly fiat pair data to daily."""
+    pair_map = {"usdt": "usdtusd", "usdc": "usdcusd", "dai": "daiusd"}
+    pair = pair_map.get(coin)
+    if pair is None:
+        return pd.DataFrame()
+
+    filepath = RAW_DATA_DIR / f"{coin}_kraken_{pair}.csv"
+
+    if not filepath.exists():
+        print(f"Warning: {filepath} not found")
+        return pd.DataFrame()
+
+    df = pd.read_csv(filepath)
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["date"] = df["timestamp"].dt.date
+
+    # Aggregate to daily
+    daily = df.groupby("date").agg(
+        kr_price=("close", "last"),
+        kr_volume=("volume", "sum"),
+        kr_trades=("trades", "sum"),
+        kr_spread_proxy=("spread_proxy", "mean"),
+        kr_vwap=("vwap", "last"),
+        kr_vwap_deviation=("vwap_deviation", "mean"),
+    ).reset_index()
+
+    daily["date"] = pd.to_datetime(daily["date"])
 
     return daily
 
@@ -139,11 +172,13 @@ def merge_coin_data(coin: str, fred_df: pd.DataFrame = None) -> pd.DataFrame:
 
     # Load sources
     binance = load_binance_daily(coin)
+    kraken = load_kraken_daily(coin)
     defillama = load_defillama(coin)
     coingecko = load_coingecko(coin)
     fear_greed = load_fear_greed()
 
     print(f"Binance: {len(binance)} days")
+    print(f"Kraken: {len(kraken)} days")
     print(f"DefiLlama: {len(defillama)} days")
     print(f"CoinGecko: {len(coingecko)} days")
     print(f"Fear & Greed: {len(fear_greed)} days")
@@ -162,6 +197,11 @@ def merge_coin_data(coin: str, fred_df: pd.DataFrame = None) -> pd.DataFrame:
     if not coingecko.empty:
         merged = merged.merge(coingecko, on="date", how="left")
         print(f"After CoinGecko: {len(merged)} days ({merged['cg_price'].notna().sum()} with CG data)")
+
+    # Add Kraken fiat pair data (left join - optional)
+    if not kraken.empty:
+        merged = merged.merge(kraken, on="date", how="left")
+        print(f"After Kraken: {len(merged)} days ({merged['kr_price'].notna().sum()} with Kraken data)")
 
     # Add Fear & Greed (left join - optional)
     if not fear_greed.empty:
@@ -221,7 +261,7 @@ def create_processed_files():
         print(f"USDC records: {len(combined[combined['coin'] == 'usdc'])}")
 
         # New columns
-        new_cols = [c for c in combined.columns if c.startswith("cg_") or c.startswith("fear_") or c.startswith("fred_")]
+        new_cols = [c for c in combined.columns if c.startswith("cg_") or c.startswith("kr_") or c.startswith("fear_") or c.startswith("fred_")]
         if new_cols:
             print(f"New features added: {new_cols}")
 

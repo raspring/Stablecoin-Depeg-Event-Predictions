@@ -17,6 +17,7 @@ STABLECOINS = {
         "type": "fiat-backed",
         "ethereum_contract": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
         "binance_pairs": ["BTCUSDT", "ETHUSDT"],
+        "kraken_pairs": ["USDTUSD"],
     },
     "usdc": {
         "coingecko_id": "usd-coin",
@@ -26,6 +27,7 @@ STABLECOINS = {
         "type": "fiat-backed",
         "ethereum_contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
         "binance_pairs": ["BTCUSDC", "ETHUSDC"],
+        "kraken_pairs": ["USDCUSD"],
     },
     "dai": {
         "coingecko_id": "dai",
@@ -35,6 +37,7 @@ STABLECOINS = {
         "type": "crypto-collateralized",
         "ethereum_contract": "0x6B175474E89094C44Da98b954EesdfeeB131e",
         "binance_pairs": ["DAIUSDT"],
+        "kraken_pairs": ["DAIUSD"],
     },
     "frax": {
         "coingecko_id": "frax",

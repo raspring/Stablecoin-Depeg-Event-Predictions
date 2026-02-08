@@ -19,6 +19,7 @@ python src/data/collect_all.py all --no-onchain
 # Collect individual sources
 python src/data/collect_prices.py      # CoinGecko prices
 python src/data/collect_binance.py     # Binance OHLCV
+python src/data/collect_kraken.py     # Kraken fiat pairs (USDTUSD, USDCUSD, DAIUSD)
 python src/data/collect_defillama.py   # DefiLlama supply metrics
 python src/data/collect_onchain.py     # Etherscan transfers (needs ETHERSCAN_API_KEY)
 python src/data/collect_market.py      # BTC/ETH prices + Fear & Greed
@@ -42,16 +43,17 @@ pytest tests/
 
 ### Data Pipeline
 
-`collect_all.py` orchestrates 5 collectors that each write to `data/raw/`:
+`collect_all.py` orchestrates 7 collectors that each write to `data/raw/`:
 
 1. **CoinGeckoCollector** (`collect_prices.py`) - stablecoin USD prices, market cap, volume
 2. **BinanceCollector** (`collect_binance.py`) - hourly OHLCV for trading pairs (e.g., BTCUSDT), buy pressure, spread
-3. **DefiLlamaCollector** (`collect_defillama.py`) - circulating supply, chain distribution, implied price
-4. **EtherscanCollector** (`collect_onchain.py`) - ERC-20 token transfers, whale transactions, gas metrics
-5. **MarketDataCollector** (`collect_market.py`) - BTC/ETH prices, Fear & Greed Index, stablecoin market share
-6. **FREDCollector** (`collect_fred.py`) - DXY, VIX, Treasury rates, Fed Funds rate
+3. **KrakenCollector** (`collect_kraken.py`) - hourly OHLCV for fiat pairs (USDTUSD, USDCUSD, DAIUSD), VWAP, spread
+4. **DefiLlamaCollector** (`collect_defillama.py`) - circulating supply, chain distribution, implied price
+5. **EtherscanCollector** (`collect_onchain.py`) - ERC-20 token transfers, whale transactions, gas metrics
+6. **MarketDataCollector** (`collect_market.py`) - BTC/ETH prices, Fear & Greed Index, stablecoin market share
+7. **FREDCollector** (`collect_fred.py`) - DXY, VIX, Treasury rates, Fed Funds rate
 
-`merge_sources.py` joins all raw sources on date into `data/processed/{coin}_merged_daily.csv` and `combined_stablecoins_daily.csv`. Binance data is aggregated from hourly to daily. FRED and Fear & Greed are left-joined (optional).
+`merge_sources.py` joins all raw sources on date into `data/processed/{coin}_merged_daily.csv` and `combined_stablecoins_daily.csv`. Binance and Kraken data are aggregated from hourly to daily. FRED, Kraken, and Fear & Greed are left-joined (optional).
 
 ### Feature Engineering & Labeling
 
@@ -73,7 +75,7 @@ pytest tests/
 
 ## Key Configuration
 
-All stablecoin configs (CoinGecko IDs, DefiLlama IDs, Ethereum contracts, Binance pairs) are in `config/settings.py`. The depeg threshold defaults to 1% (`DEPEG_THRESHOLD = 0.01`), but models also use 0.5% for more positive training samples.
+All stablecoin configs (CoinGecko IDs, DefiLlama IDs, Ethereum contracts, Binance pairs, Kraken pairs) are in `config/settings.py`. The depeg threshold defaults to 1% (`DEPEG_THRESHOLD = 0.01`), but models also use 0.5% for more positive training samples.
 
 ## API Keys
 
@@ -84,7 +86,7 @@ Set via environment variables (or `.env` file):
 
 ## File Naming Convention
 
-Raw data files follow: `{coin}_{source}_{detail}.csv` (e.g., `usdt_binance_btcusdt.csv`, `usdc_defillama_metrics.csv`). Market-wide files: `market_{type}.csv`. All raw data is gitignored.
+Raw data files follow: `{coin}_{source}_{detail}.csv` (e.g., `usdt_binance_btcusdt.csv`, `usdt_kraken_usdtusd.csv`, `usdc_defillama_metrics.csv`). Market-wide files: `market_{type}.csv`. All raw data is gitignored.
 
 ## Important Patterns
 

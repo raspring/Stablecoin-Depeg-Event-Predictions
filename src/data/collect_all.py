@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.data.collect_prices import CoinGeckoCollector
 from src.data.collect_binance import BinanceCollector
+from src.data.collect_kraken import KrakenCollector
 from src.data.collect_defillama import DefiLlamaCollector
 from src.data.collect_onchain import EtherscanCollector
 from src.data.collect_market import MarketDataCollector
@@ -40,7 +41,7 @@ def collect_all(
     results = {}
 
     # 1. CoinGecko price data
-    print("\n[1/5] CoinGecko - Price Data")
+    print("\n[1/6] CoinGecko - Price Data")
     print("-" * 40)
     try:
         cg_collector = CoinGeckoCollector()
@@ -53,7 +54,7 @@ def collect_all(
         results["coingecko"] = 0
 
     # 2. Binance trading data
-    print("\n[2/5] Binance - Trading Data")
+    print("\n[2/6] Binance - Trading Data")
     print("-" * 40)
     try:
         binance_collector = BinanceCollector()
@@ -67,8 +68,27 @@ def collect_all(
         print(f"Error: {e}")
         results["binance"] = 0
 
-    # 3. DefiLlama stablecoin metrics
-    print("\n[3/5] DefiLlama - Stablecoin Metrics")
+    # 3. Kraken fiat pair data
+    print("\n[3/6] Kraken - Fiat Pair Data")
+    print("-" * 40)
+    try:
+        kraken_collector = KrakenCollector()
+        kraken_data = kraken_collector.collect_stablecoin_trading_data(
+            coin_key, start_date=start_date
+        )
+        if kraken_data:
+            kraken_collector.save_data(kraken_data, coin_key)
+            results["kraken"] = sum(len(df) for df in kraken_data.values())
+            print(f"Success: {results['kraken']} total records")
+        else:
+            results["kraken"] = 0
+            print("No Kraken pairs available for this coin")
+    except Exception as e:
+        print(f"Error: {e}")
+        results["kraken"] = 0
+
+    # 4. DefiLlama stablecoin metrics
+    print("\n[4/6] DefiLlama - Stablecoin Metrics")
     print("-" * 40)
     try:
         defillama_collector = DefiLlamaCollector()
@@ -84,8 +104,8 @@ def collect_all(
         print(f"Error: {e}")
         results["defillama"] = 0
 
-    # 4. On-chain data (optional)
-    print("\n[4/5] Etherscan - On-Chain Data")
+    # 5. On-chain data (optional)
+    print("\n[5/6] Etherscan - On-Chain Data")
     print("-" * 40)
     if include_onchain:
         try:
@@ -111,8 +131,8 @@ def collect_all(
         print("Skipped (include_onchain=False)")
         results["onchain"] = 0
 
-    # 5. Market data
-    print("\n[5/5] Market Data - BTC/ETH & Sentiment")
+    # 6. Market data
+    print("\n[6/6] Market Data - BTC/ETH & Sentiment")
     print("-" * 40)
     try:
         market_collector = MarketDataCollector()
